@@ -147,13 +147,13 @@ def generate_query(group=1):
       table1=random.choice(tables)
       join_column = None
 
-  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(48.304,50.144,1.46,0.045,0.03),k=1)[0] ## based on clinton dataset statistics
+  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ## based on the Stack dataset statistics
 
   column_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in select clause
   where_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in where clause
 
   query = f"SELECT"
-  distinct = random.choices([True, False], weights=[0.116, 0.884])[0] #proportions based on Clinton's dataset statistics
+  distinct = random.choices([True, False], weights=[4.624, 95.376])[0] #proportions based on the Stack dataset statistics
   if(distinct):
     query += f" DISTINCT"
 
@@ -180,7 +180,7 @@ def generate_query(group=1):
           column_type=coltype(column_op) # check the column type to put string values between ""
           val=random.choice(get2vals(column_op))
           if try_negation:
-            negation=random.choices([True,False],weights=(2.719,97.281),k=1)[0] ##based on clinton's dataset statistics
+            negation=random.choices([True,False],weights=(8.60,91.4),k=1)[0] ##based on the Stack dataset statistics
           if op in ['IN','BETWEEN']:
             val = get2vals(column_op)
           if op =="IN":
@@ -202,7 +202,7 @@ def generate_query(group=1):
             else:
               query += f"{val} "
 
-          query += random.choices(["AND"," OR","XOR"], weights=(73.52,26.47,0),k=1)[0]  ##based on Clinton's dataset statistics
+          query += random.choices(["AND"," OR","XOR"], weights=(42.02,57.96,0.02),k=1)[0]  ##based on the Stack dataset statistics
       query = query[:-4] #removing the last "AND"
   if use_group_by:
       query += f" GROUP BY {random.choice([x for x in columns[table1] if x != join_column])}"
@@ -276,7 +276,7 @@ def generate_batch(dataset_size, number_of_paraphrases, output_file):
 
         for i in range(dataset_size):
 
-            group = random.choices([0,1,2,3,4], weights=(10.09,89.91,36.13,10,12),k=1)[0] # based on clinton's dataset statistics
+            group = random.choices([0,1,2,3,4], weights=(45.35,24.73,14.86,2.75,12.31),k=1)[0] # based on the Stack dataset statistics
 
             query = generate_query(group)
             pre_processed_query = pre_process(query)
