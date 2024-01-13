@@ -239,6 +239,8 @@ def pre_process(query):
   if("DISTINCT" in query):
     position = query.find("DISTINCT")
     query = query[:position]+"the unique"+query[position+8:]
+  if( "*" in query):
+    query = query.replace("*","")
   while "." in query:
     dot_position = query.find(".")
     space_position = query.rfind(" ",0,dot_position)
@@ -279,9 +281,6 @@ def get_paraphrased_sentences(model, tokenizer, sentence, num_return_sequences=5
 
 
   return final_outputs
-
-  # decode the generated sentences using the tokenizer to get them back to text
-  return tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
 def generate_batch(dataset_size, number_of_paraphrases, output_file):
     with open(output_file, 'w', newline="") as file:
