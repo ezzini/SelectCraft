@@ -1,8 +1,4 @@
-transformers=4.35.2
-sentencepiece=0.1.99
-torch=2.1.0+cu121
-random
-re
-sys
+transformers==4.35.2
+sentencepiece==0.1.99
+torch==2.1.0+cu121
 argparse
-csv
