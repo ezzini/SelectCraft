@@ -1,6 +1,4 @@
-import random, re, sys, argparse, itertools, torch, csv
-from tqdm import tqdm
-import pandas as pd
+import random, re, sys, argparse, torch, csv
 
 from transformers import AutoModelWithLMHead, AutoTokenizer, AutoModelForSeq2SeqLM
 
@@ -147,7 +145,7 @@ def generate_query(group=1):
       table1=random.choice(tables)
       join_column = None
 
-  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ## based on the Stack dataset statistics
+  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ## based on clinton dataset statistics
 
   column_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in select clause
   where_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in where clause
@@ -157,19 +155,27 @@ def generate_query(group=1):
   if(distinct):
     query += f" DISTINCT"
 
-  if use_join:
+  star = random.choices([True, False], weights=[15.94, 84.06])[0]
+  if(star):
+    if(use_aggregate_func):
+      query += f" COUNT(*)"
+    else:
+      query += " *"
+  else:
+    if use_join:
       #to add one column from table1 and one column from table2 to the select clause if there is any
       query += f" {table1}.{random.choice([x for x in columns[table1] if x != join_column and x not in column_combination])}, {table2}.{random.choice([x for x in columns[table2] if x != join_column])}, "
-  for column_name in column_combination:
-      if use_join:
-        column_name=table1+'.'+column_name
-      if use_aggregate_func:
-          query += f" {get_agg(column_name)}({column_name}),"
-          use_aggregate_func=False
-      else:
-          query += f" {column_name},"
+    for column_name in column_combination:
+        if use_join:
+          column_name=table1+'.'+column_name
+        if use_aggregate_func:
+            query += f" {get_agg(column_name)}({column_name}),"
+            use_aggregate_func=False
+        else:
+            query += f" {column_name},"
+    query = query[:-1] # removing the last ','
 
-  query = query[:-1] # removing the last ','
+
   query += f" FROM {table1} "
   if use_join:
       query += f"{join_op} {table2} ON {table1}.{join_column} = {table2}.{join_column} "
@@ -183,20 +189,25 @@ def generate_query(group=1):
             negation=random.choices([True,False],weights=(8.60,91.4),k=1)[0] ##based on the Stack dataset statistics
           if op in ['IN','BETWEEN']:
             val = get2vals(column_op)
+          
+          column = column_op
+          if use_join: ## add the TABLE.COLUMN in where clause in case of join
+            column = f"{table1}.{column_op}"
+          
           if op =="IN":
             if negation:
-              query += f" NOT({column_op} {op} {str(tuple(val))}) " ## in sql we use () not [] : but in this case we will have in ['DAM', 'MAR'] for example?! I changed the type to tuple
+              query += f" NOT({column} {op} {str(tuple(val))}) " ## val is a list we changed its type to tuple to adhere to sql syntax rules
             else:
-              query += f" {column_op} {op} {str(tuple(random.sample(val,random.randint(2,len(val)))))} "
+              query += f" {column} {op} {str(tuple(random.sample(val,random.randint(2,len(val)))))} "
           elif op == 'BETWEEN':
             if negation:
-              query += f" NOT {column_op} {op} {val[0]} AND {random.choice(val[1:])} "
+              query += f" NOT {column} {op} {val[0]} AND {random.choice(val[1:])} "
             else:
-              query += f" {column_op} {op} {val[0]} AND {random.choice(val[1:])} "
+              query += f" {column} {op} {val[0]} AND {random.choice(val[1:])} "
           elif negation:
-            query += f" NOT {column_op} {op} {val} "
+            query += f" NOT {column} {op} {val} "
           else:
-            query += f" {column_op} {op} "
+            query += f" {column} {op} "
             if(column_type in ('s', 'b')):  # check the column type to put string values between ""
               query += f"\"{val}\" "
             else:
@@ -205,7 +216,10 @@ def generate_query(group=1):
           query += random.choices(["AND"," OR","XOR"], weights=(42.02,57.96,0.02),k=1)[0]  ##based on the Stack dataset statistics
       query = query[:-4] #removing the last "AND"
   if use_group_by:
-      query += f" GROUP BY {random.choice([x for x in columns[table1] if x != join_column])}"
+      table=""
+      if use_join:
+        table=f"{table1}."
+      query += f" GROUP BY {table}{random.choice([x for x in columns[table1] if x != join_column])}"
   return query.replace('  ',' ')
 
 def get_explanation(query,max_length=200):
