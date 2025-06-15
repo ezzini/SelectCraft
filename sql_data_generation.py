@@ -6,14 +6,30 @@ from transformers import AutoModelWithLMHead, AutoTokenizer, AutoModelForSeq2Seq
 
 #list of columns for each table : DB SCHEMA
 columns = {
-        'Transactions': ["transaction_id","timestamp_id","primary_contract_id","client_id","beneficiary_id","transaction_amount","amount_currency","product_family_code","is_fraudulent"],
-        'Beneficiary': ["beneficiary_id","bank_branch_id","country_name","country_code"],
-        'Source': ["primary_contract_id", "client_id", "counterparty_bank_branch_id", "counterparty_donor_id"],
-        'Time': ["timestamp_id","week_number","day_number","hour_number","day_name","year","month_number"]
+        'Clients': ["client_id","first_name","last_name","year_of_birth","gender","email","city"],
+        'Loans': ["loan_id","client_id","budget","duration","interest","status"],
+        'Accounts': ["account_id", "client_id", "balance", "type"],
+        'Deposits': ["deposit_id","account_id","amount","source"]
+}
+
+#Primary and Foreign keys
+primary_keys = {
+    "Clients": "client_id",
+    "Loans": "loan_id",
+    "Accounts": "account_id",
+    "Deposits": "deposit_id"
+}
+relationships = {
+    ("Loans", "client_id"): ("Clients", "client_id"),
+    ("Accounts", "client_id"): ("Clients", "client_id"),
+    ("Deposits", "account_id"): ("Accounts", "account_id")
 }
 
 #list of tables' names
 tables = list(columns.keys())
+
+#This is the list of related tables (non-standalone)
+related_tables = ["Clients", "Loans", "Accounts", "Deposits"]
 
 # List of possible operators
 operators = ['=', '>', '<', '<>', 'IN', 'LIKE','>=', '<=','BETWEEN']
@@ -46,52 +62,66 @@ def main():
     parser.add_argument('--output_file', dest='output_file', type=str, help='The path to the output file')
     args = parser.parse_args()
 
-
     generate_batch(args.dataset_size, args.number_of_paraphrases, args.output_file)
 
 
 def get2vals(col):
+    first_names = [ "Madison", "Joshua", "Natalie", "Andrew", "Addison", "Ethan", "Brooklyn", "Christopher", "Savannah", "Jack", "Leah", "Ryan", "Zoey", "William", "Hannah", "Matthew", "Aaliyah", "David", "Peyton", "Mason", "Samantha", "Nathan", "Hailey", "Tyler", "Ava", "Nicholas", "Anna", "Brayden", "Kennedy", "Joseph", "Bella", "Dylan", "Sarah", "Logan", "Katherine", "Brandon", "Morgan", "Gabriel", "Taylor", "Elijah", "Natalie", "Caleb", "Gabriella", "Jackson", "Victoria", "Evan", "Claire", "Aidan", "Audrey", "Gavin", "Emily", "Liam", "Sophia", "Noah", "Olivia", "Elijah", "Emma", "Oliver", "Ava", "William", "Isabella", "James", "Mia", "Benjamin", "Charlotte", "Lucas", "Amelia", "Henry", "Harper", "Alexander", "Evelyn", "Jacob", "Abigail", "Michael", "Elizabeth", "Ethan", "Ella", "Daniel", "Lily", "Matthew", "Grace", "Aiden", "Sofia", "Jackson", "Avery", "David", "Scarlett", "Joseph", "Chloe", "Samuel", "Zoey", "Carter", "Riley", "Gabriel", "Layla", "Logan", "Audrey", "Anthony", "Skylar", "Dylan" ]
+    first_names = random.choices(first_names,k=3)
+    last_names = [ "Smith", "Johnson", "Williams", "Jones", "Brown", "Davis", "Miller", "Wilson", "Moore", "Taylor", "Anderson", "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson", "Garcia", "Martinez", "Robinson", "Clark", "Rodriguez", "Lewis", "Lee", "Walker", "Hall", "Allen", "Young", "Hernandez", "King", "Wright", "Lopez", "Hill", "Scott", "Green", "Adams", "Baker", "Gonzalez", "Nelson", "Carter", "Mitchell", "Perez", "Roberts", "Turner", "Phillips", "Campbell", "Parker", "Evans", "Edwards", "Collins", "Stewart", "Sanchez", "Morris", "Rogers", "Reed", "Cook", "Morgan", "Bell", "Murphy", "Bailey", "Rivera", "Cooper", "Richardson", "Cox", "Howard", "Ward", "Torres", "Peterson", "Gray", "Ramirez", "James", "Watson", "Brooks", "Kelly", "Sanders", "Price", "Bennett", "Wood", "Barnes", "Ross", "Henderson", "Coleman", "Jenkins", "Perry", "Powell", "Long", "Patterson", "Hughes", "Flores", "Washington", "Butler", "Simmons", "Foster", "Gonzales", "Bryant", "Alexander", "Russell", "Griffin", "Diaz", "Hayes" ]
+    last_names = random.choices(last_names,k=3)
+    cities = [ "Springfield", "Manchester", "Jacksonville", "Cleveland", "San Antonio", "Phoenix", "Seattle", "Denver", "Atlanta", "Miami", "Dallas", "Chicago", "Houston", "Detroit", "Philadelphia", "Los Angeles", "New York City", "Boston", "San Francisco", "Las Vegas", "Orlando", "Portland", "Austin", "Nashville", "Indianapolis", "Charlotte", "San Diego", "Minneapolis", "Tampa", "Kansas City", "New Orleans", "Salt Lake City", "Baltimore", "Raleigh", "Columbus", "Pittsburgh", "St. Louis", "Milwaukee", "Buffalo", "Honolulu", "Albuquerque", "Omaha", "Louisville", "Anchorage", "Memphis", "Providence", "Hartford", "Richmond", "Oklahoma City" ]
+    cities = random.choices(cities,k=3)
+    emails = []
+    for first_name , last_name in zip(first_names, last_names):
+      email = f"{first_name.lower()}.{last_name.lower()}@cs.ma"
+      emails.append(email)
+    emails = random.choices(emails,k=2)
+
     i,j=0,0
-    if col in ['bank_branch_id','transaction_id','beneficiary_id','primary_contract_id','client_id','counterparty_donor_id','counterparty_bank_branch_id','timestamp_id','product_family_code','transaction_amount']:
+    if col in ["loan_id","client_id","deposit_id","account_id"]:
       i,j=1,100000
-    elif col == 'year':
-      i,j=2000,2024
-    elif col=='month_number':
-      i,j=1,12
-    elif col=='week_number':
-      i,j=1,7
-    elif col=='hour_number':
-      i,j=1,24
-    elif col=='day_number':
-      i,j=1,31
+    elif col in ['amount','balance','budget']:
+      i,j=100,1000000
+    elif col == 'year_of_birth':
+      i,j=1950,2010
+    elif col=='duration':
+      i,j=1,30
+    elif col=='interest':
+      i,j=1,25
     if j!=0 and i!=0:
       fv=random.randint(i, j-3)    #fv:first value
       return [fv,random.randint(fv+2, j)]
-    if col=='amount_currency':
-      return ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNH', 'HKD', 'NZD']
-    if col=='is_fraudulent':
-      return ['Yes', 'No']
-    if col=='day_name':
-      return ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-    if col=='country_name':
-      return ['Luxembourg', 'USA', 'Canada', 'Germany', 'France', 'England','Belgium']
-    if col=='country_code':
-      return ['LU','US','CA','DE','FR','UK','BE']
+    if col=='first_name':
+      return first_names
+    if col=='last_name':
+      return last_names
+    if col=='email':
+      return emails
+    if col=='gender':
+      return ['Male','Female']
+    if col=='city':
+      return cities
+    if col=='status':
+      return ['current','overdue','paid off']
+    if col=='type':
+      return ['Deposit account','Saving account','Loan account']
+    if col=='source':
+      return ['Transaction','Cash','Check']
     print("ERROR Col not defined:",col)
 
 #to verify if we can process an aggregation function on this type or not (for example a sum or avg ...)
 def iscat(col):
-  if col in ['transaction_amount','year','month_number','week_number','day_number','hour_number']:
+  if col in ['budget','amount','balance']:
     return False
   return True
 
 def coltype(col):
-  if col in ['country_code','country_name','day_name','amount_currency']:
+  if col in ['first_name','last_name','email','gender','city', 'status','type','source']:
     return 's'
-  elif col in ['bank_branch_id','transaction_id','beneficiary_id','primary_contract_id','client_id','counterparty_donor_id','counterparty_bank_branch_id','timestamp_id','product_family_code']:
+  elif col in ["loan_id","client_id","deposit_id","account_id"]:
     return 'c'
-  elif col in ['is_fraudulent']:
-    return 'b'
+  #if there is a boolean column add it here return 'b'
   else:
     return 'ns'
 
@@ -135,20 +165,30 @@ def generate_query(group=1):
 
   table1,table2='',''
 
+
   # if the group>=4 (complex query) chose 2 random tables to join
   if use_join:
-      table1=tables[0]
-      table2=random.choice(tables[1:])
-      join_columns = list(set(columns[table1]).intersection(columns[table2]))
-      join_column = join_columns[0]
+      
+      table1=random.choice(related_tables)
+      candidates = []
+      for (t1, c1), (t2, c2) in relationships.items():
+          if t1 == table1:
+              candidates.append((t2, c1, c2))
+          elif t2 == table1:
+              candidates.append((t1, c2, c1))
+
+      table2, join_column1, join_column2 = random.choice(candidates)
+
+
   else:
       table1=random.choice(tables)
-      join_column = None
+      join_column1 = None
+      join_column2 = None
 
   join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ## based on clinton dataset statistics
 
-  column_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in select clause
-  where_combination = random.sample([x for x in columns[table1] if x != join_column], random.choice(range(1, 3))) ## two columns to put in where clause
+  column_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## two columns to put in select clause
+  where_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## two columns to put in where clause
 
   query = f"SELECT"
   distinct = random.choices([True, False], weights=[4.624, 95.376])[0] #proportions based on the Stack dataset statistics
@@ -164,7 +204,7 @@ def generate_query(group=1):
   else:
     if use_join:
       #to add one column from table1 and one column from table2 to the select clause if there is any
-      query += f" {table1}.{random.choice([x for x in columns[table1] if x != join_column and x not in column_combination])}, {table2}.{random.choice([x for x in columns[table2] if x != join_column])}, "
+      query += f" {table1}.{random.choice([x for x in columns[table1] if x != join_column1 and x not in column_combination])}, {table2}.{random.choice([x for x in columns[table2] if x != join_column2])}, "
     for column_name in column_combination:
         if use_join:
           column_name=table1+'.'+column_name
@@ -178,7 +218,7 @@ def generate_query(group=1):
 
   query += f" FROM {table1} "
   if use_join:
-      query += f"{join_op} {table2} ON {table1}.{join_column} = {table2}.{join_column} "
+      query += f"{join_op} {table2} ON {table1}.{join_column1} = {table2}.{join_column2} "
   if use_where:
       query += "WHERE"
       for column_op in where_combination :
@@ -219,7 +259,7 @@ def generate_query(group=1):
       table=""
       if use_join:
         table=f"{table1}."
-      query += f" GROUP BY {table}{random.choice([x for x in columns[table1] if x != join_column])}"
+      query += f" GROUP BY {table}{random.choice([x for x in columns[table1] if x != join_column1])}"
   return query.replace('  ',' ')
 
 def get_explanation(query,max_length=200):
@@ -259,7 +299,7 @@ def get_paraphrased_sentences(model, tokenizer, sentence, num_return_sequences=5
 
   text =  "paraphrase: " + sentence + " </s>"
 
-  encoding = tokenizer.encode_plus(text,pad_to_max_length=True, return_tensors="pt")
+  encoding = tokenizer.encode_plus(text,padding='max_length', return_tensors="pt")
   input_ids, attention_masks = encoding["input_ids"].to(device), encoding["attention_mask"].to(device)
 
   beam_outputs = model.generate(
@@ -301,4 +341,5 @@ def generate_batch(dataset_size, number_of_paraphrases, output_file):
                 csvwriter.writerow([phrase,query])
 
 if __name__ == '__main__':
+
     sys.exit(main())
