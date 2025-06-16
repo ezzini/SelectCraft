@@ -4,15 +4,15 @@ from transformers import AutoModelWithLMHead, AutoTokenizer, AutoModelForSeq2Seq
 
 
 
-#list of columns for each table : DB SCHEMA
+# List of columns for each table : DB SCHEMA
 columns = {
         'Clients': ["client_id","first_name","last_name","year_of_birth","gender","email","city"],
         'Loans': ["loan_id","client_id","budget","duration","interest","status"],
         'Accounts': ["account_id", "client_id", "balance", "type"],
         'Deposits': ["deposit_id","account_id","amount","source"]
 }
-
-#Primary and Foreign keys
+ 
+# Primary and Foreign keys
 primary_keys = {
     "Clients": "client_id",
     "Loans": "loan_id",
@@ -25,10 +25,10 @@ relationships = {
     ("Deposits", "account_id"): ("Accounts", "account_id")
 }
 
-#list of tables' names
+# List of tables' names
 tables = list(columns.keys())
 
-#This is the list of related tables (non-standalone)
+# List of related tables (non-standalone)
 related_tables = ["Clients", "Loans", "Accounts", "Deposits"]
 
 # List of possible operators
@@ -46,11 +46,13 @@ nsoperators = ['=', '>', '<', '<>','>=', '<=', 'BETWEEN']
 aggregate_ops = ["COUNT", "SUM", "AVG", "MAX", "MIN"]
 
 
+# SQL-to-Text Model: takes an SQL query as an input and generates its related Natural Language Question
 tokenizer = AutoTokenizer.from_pretrained("mrm8488/t5-base-finetuned-wikiSQL-sql-to-en")
 model = AutoModelWithLMHead.from_pretrained("mrm8488/t5-base-finetuned-wikiSQL-sql-to-en")
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
+# Paraphrasing Model: takes a natural language question and generates n paraphrases of it
 t5_tokenizer = AutoTokenizer.from_pretrained("Vamsi/T5_Paraphrase_Paws")
 t5_model = AutoModelForSeq2SeqLM.from_pretrained("Vamsi/T5_Paraphrase_Paws")
 
@@ -65,6 +67,14 @@ def main():
     generate_batch(args.dataset_size, args.number_of_paraphrases, args.output_file)
 
 
+
+# A store of possible values for each column .
+#
+# Parameters:
+#     col (str): The column name.
+#
+# Returns:
+#     list: The list of possible values of col.
 def get2vals(col):
     first_names = [ "Madison", "Joshua", "Natalie", "Andrew", "Addison", "Ethan", "Brooklyn", "Christopher", "Savannah", "Jack", "Leah", "Ryan", "Zoey", "William", "Hannah", "Matthew", "Aaliyah", "David", "Peyton", "Mason", "Samantha", "Nathan", "Hailey", "Tyler", "Ava", "Nicholas", "Anna", "Brayden", "Kennedy", "Joseph", "Bella", "Dylan", "Sarah", "Logan", "Katherine", "Brandon", "Morgan", "Gabriel", "Taylor", "Elijah", "Natalie", "Caleb", "Gabriella", "Jackson", "Victoria", "Evan", "Claire", "Aidan", "Audrey", "Gavin", "Emily", "Liam", "Sophia", "Noah", "Olivia", "Elijah", "Emma", "Oliver", "Ava", "William", "Isabella", "James", "Mia", "Benjamin", "Charlotte", "Lucas", "Amelia", "Henry", "Harper", "Alexander", "Evelyn", "Jacob", "Abigail", "Michael", "Elizabeth", "Ethan", "Ella", "Daniel", "Lily", "Matthew", "Grace", "Aiden", "Sofia", "Jackson", "Avery", "David", "Scarlett", "Joseph", "Chloe", "Samuel", "Zoey", "Carter", "Riley", "Gabriel", "Layla", "Logan", "Audrey", "Anthony", "Skylar", "Dylan" ]
     first_names = random.choices(first_names,k=3)
@@ -110,12 +120,29 @@ def get2vals(col):
       return ['Transaction','Cash','Check']
     print("ERROR Col not defined:",col)
 
-#to verify if we can process an aggregation function on this type or not (for example a sum or avg ...)
+
+
+# Checks if we can apply all the aggregation functions or just COUNT.
+#
+# Parameters:
+#     col (str): The column name.
+#
+# Returns:
+#     bool: False if we can apply all the aggregate function on col, True if we can apply only COUNT function on col.
 def iscat(col):
   if col in ['budget','amount','balance']:
     return False
   return True
 
+
+
+# Provides columns types.
+#
+# Parameters:
+#     col (str): The column name.
+#
+# Returns:
+#     str: Type of col (s for string, c for codes and ids, b for boolean, ns for numbers).
 def coltype(col):
   if col in ['first_name','last_name','email','gender','city', 'status','type','source']:
     return 's'
@@ -125,6 +152,14 @@ def coltype(col):
   else:
     return 'ns'
 
+
+# Provides operators for each column based on its type.
+#
+# Parameters:
+#     col (str): The column name.
+#
+# Returns:
+#     list: List of possible operators that can be applied with col.
 def get_op(col):
   ctype=coltype(col)
   if ctype=='s':
@@ -136,13 +171,28 @@ def get_op(col):
   if ctype=='c':
     return random.choice(coperators)
 
-# generate a random aggregation function based on the column type
+
+# Generates a random aggregate function for a column.
+#
+# Parameters:
+#     col (str): The column name.
+#
+# Returns:
+#     str: A random aggregate function for col.
 def get_agg(col):
   ctype=iscat(col)
   if ctype:
-    return "COUNT" # there are some function for playing with strings (concatenations ...) we can add those to
+    return "COUNT"
   return random.choice(aggregate_ops)
 
+
+# Generate an SQL query based on a complexity group.
+#
+# Parameters:
+#     group (int): The complexity group of the query (1,2,3,4).
+#
+# Returns:
+#     str: An SQL query of complexity group.
 def generate_query(group=1):
   agg, join, where, group_by, try_negation, negation=(False,False,False,False,False,False)
 
@@ -185,17 +235,17 @@ def generate_query(group=1):
       join_column1 = None
       join_column2 = None
 
-  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ## based on clinton dataset statistics
+  join_op= random.choices(["JOIN","INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"], weights=(47.58,25.95,23.85,1.98,0.64),k=1)[0] ##proportions based on the STACK dataset statistics
 
-  column_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## two columns to put in select clause
-  where_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## two columns to put in where clause
+  column_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## one or two columns to put in select clause
+  where_combination = random.sample([x for x in columns[table1] if x != join_column1], random.choice(range(1, 3))) ## one or two columns to put in where clause
 
   query = f"SELECT"
   distinct = random.choices([True, False], weights=[4.624, 95.376])[0] #proportions based on the Stack dataset statistics
   if(distinct):
     query += f" DISTINCT"
 
-  star = random.choices([True, False], weights=[15.94, 84.06])[0]
+  star = random.choices([True, False], weights=[15.94, 84.06])[0] #proportions based on the Stack dataset statistics
   if(star):
     if(use_aggregate_func):
       query += f" COUNT(*)"
@@ -236,7 +286,7 @@ def generate_query(group=1):
           
           if op =="IN":
             if negation:
-              query += f" NOT({column} {op} {str(tuple(val))}) " ## val is a list we changed its type to tuple to adhere to sql syntax rules
+              query += f" NOT({column} {op} {str(tuple(val))}) "
             else:
               query += f" {column} {op} {str(tuple(random.sample(val,random.randint(2,len(val)))))} "
           elif op == 'BETWEEN':
@@ -262,6 +312,16 @@ def generate_query(group=1):
       query += f" GROUP BY {table}{random.choice([x for x in columns[table1] if x != join_column1])}"
   return query.replace('  ',' ')
 
+
+
+# Generate a natural language question based on an SQL query.
+#
+# Parameters:
+#     query (str): An SQL query.
+#     max_length (int): The maximum number of tokens that the model is allowed to generate
+#
+# Returns:
+#     str: The natural language question related to query.
 def get_explanation(query,max_length=200):
   input_text = "translate Sql to English: %s </s>" % query
   features = tokenizer([input_text], return_tensors='pt').to(device)
@@ -271,7 +331,15 @@ def get_explanation(query,max_length=200):
 
   return re.sub(r"<.*?>", "", tokenizer.decode(output[0])).strip()
 
-##The sql to text model do not interpret well some key points, this function will enhance the results
+
+
+# Preprocess the SQL query to improve its compatibility with the SQL-to-text model.
+#
+# Parameters:
+#     query (str): The input SQL query.
+#
+# Returns:
+#     str: The preprocessed SQL query.
 def pre_process(query):
   if("<>" in query):
     position = query.find("<>")
@@ -285,9 +353,20 @@ def pre_process(query):
     dot_position = query.find(".")
     space_position = query.rfind(" ",0,dot_position)
     parenthesis_position = query.rfind("(",0,dot_position)
-    query = query[:max(space_position,parenthesis_position)+1]+query[dot_position+1:] #choose the maximum of the nearest space or nearest parenthesis when dealing with agregate functoins
+    query = query[:max(space_position,parenthesis_position)+1]+query[dot_position+1:] # removes the table name before each column in case of joins 
   return query
 
+
+# Paraphrases a given sentence.
+#
+# Parameters:
+#     model (object): The paraphrasing model.
+#     tokenizer (object): The tokenizer associated with the model.
+#     sentence (str): The natural language sentence to paraphrase.
+#     num_return_sequences (int): The number of paraphrased outputs to generate.
+#
+# Returns:
+#     list: A list containing num_return_sequences paraphrased versions of the input sentence.
 def get_paraphrased_sentences(model, tokenizer, sentence, num_return_sequences=5):
 
   torch.manual_seed(42)
@@ -322,6 +401,17 @@ def get_paraphrased_sentences(model, tokenizer, sentence, num_return_sequences=5
 
   return final_outputs
 
+
+
+# Generate a batch of NLQ-SQL pairs and save them to a CSV file.
+#
+# Parameters:
+#     dataset_size (int): The number of NLQ-SQL examples to generate.
+#     number_of_paraphrases (int): The number of paraphrased questions per SQL query.
+#     output_file (str): The path to the output CSV file.
+#
+# Returns:
+#     None. The results are written directly to the specified CSV file.
 def generate_batch(dataset_size, number_of_paraphrases, output_file):
     with open(output_file, 'w', newline="") as file:
         csvwriter = csv.writer(file, delimiter=";")
