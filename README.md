@@ -28,14 +28,14 @@ python sql_data_generation.py --dataset_size 1000 --number_of_paraphrases 4 --ou
 ### 🧪 Example
 For a healthcare schema, the tool might generate:
 
-NL: "What are the names of patients diagnosed with diabetes in the last 2 years?"
+NL: "What are the names of patients diagnosed with diabetes in 2025?"
 
 SQL:
 
 ```sql
 SELECT name FROM patients
 WHERE diagnosis = 'diabetes'
-AND diagnosis_date >= DATE('now', '-2 years');
+AND year = '2025';
 ```
 
 ### 📈 Use Cases
